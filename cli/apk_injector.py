@@ -17,21 +17,25 @@ class APKInjector:
 
     def decompile(self):
         print(f"{CYAN}[*] Decompiling target APK using Apktool...{RESET}")
-        cmd = ["apktool", "d", "-f", self.target_apk, "-o", self.decompiled_dir]
-        res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        
+        # Termux environment PATH check
+        apktool_bin = shutil.which("apktool") or "/data/data/com.termux/files/usr/bin/apktool"
+        
+        cmd = [apktool_bin, "d", "-f", self.target_apk, "-o", self.decompiled_dir]
+        res = subprocess.run(cmd, capture_output=True, text=True)
+        
         if res.returncode != 0:
-            print(f"{RED}[!] Decompilation failed. Is apktool installed?{RESET}")
+            print(f"{RED}[!] Decompilation failed! Error Output below:{RESET}")
+            print(f"{YELLOW}{res.stderr}{RESET}")
             return False
         return True
 
     def inject_payload(self):
         print(f"{CYAN}[*] Injecting Aegis C++ Shield & Smali Hooks...{RESET}")
         
-        # 1. Create Aegis Smali structure
         smali_dir = os.path.join(self.decompiled_dir, "smali", "com", "aegis", "hardener")
         os.makedirs(smali_dir, exist_ok=True)
         
-        # Write dummy AegisNative smali file (Bridge to our C++ library)
         smali_content = """
 .class public Lcom/aegis/hardener/AegisNative;
 .super Ljava/lang/Object;
@@ -41,11 +45,9 @@ class APKInjector:
         with open(os.path.join(smali_dir, "AegisNative.smali"), "w") as f:
             f.write(smali_content.strip())
             
-        # 2. Setup lib directory for C++ .so file
         lib_dir = os.path.join(self.decompiled_dir, "lib", "arm64-v8a")
         os.makedirs(lib_dir, exist_ok=True)
         
-        # Note: In a full build, we would copy our compiled libaegis.so here.
         with open(os.path.join(lib_dir, "libaegis.so"), "w") as f:
             f.write("DUMMY_BINARY_DATA_FOR_NOW")
             
@@ -54,8 +56,9 @@ class APKInjector:
 
     def recompile(self):
         print(f"{CYAN}[*] Recompiling APK...{RESET}")
-        cmd = ["apktool", "b", self.decompiled_dir, "-o", self.recompiled_apk]
-        res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        apktool_bin = shutil.which("apktool") or "/data/data/com.termux/files/usr/bin/apktool"
+        cmd = [apktool_bin, "b", self.decompiled_dir, "-o", self.recompiled_apk]
+        res = subprocess.run(cmd, capture_output=True, text=True)
         
         if os.path.exists(self.decompiled_dir):
             shutil.rmtree(self.decompiled_dir)
@@ -64,7 +67,8 @@ class APKInjector:
             print(f"{GREEN}[✓] APK Recompiled Successfully: {self.recompiled_apk}{RESET}")
             return self.recompiled_apk
         else:
-            print(f"{RED}[!] Recompilation failed.{RESET}")
+            print(f"{RED}[!] Recompilation failed. Error Output below:{RESET}")
+            print(f"{YELLOW}{res.stderr}{RESET}")
             return None
 
 if __name__ == "__main__":
