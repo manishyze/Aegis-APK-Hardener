@@ -16,11 +16,13 @@ class APKInjector:
         self.recompiled_apk = target_apk.replace(".apk", "_recompiled.apk")
 
     def decompile(self):
-        print(f"{CYAN}[*] Decompiling target APK using Apktool...{RESET}")
+        print(f"{CYAN}[*] Decompiling target APK using Apktool (Code Only)...{RESET}")
         
         apktool_bin = shutil.which("apktool") or "/data/data/com.termux/files/usr/bin/apktool"
         
-        cmd = [apktool_bin, "d", "-f", self.target_apk, "-o", self.decompiled_dir]
+        # PRO FIX: Added '-r' flag to skip resource decoding. 
+        # This bypasses all strict AAPT2 validation errors and speeds up the pipeline!
+        cmd = [apktool_bin, "d", "-r", "-f", self.target_apk, "-o", self.decompiled_dir]
         res = subprocess.run(cmd, capture_output=True, text=True)
         
         if res.returncode != 0:
@@ -56,18 +58,11 @@ class APKInjector:
     def recompile(self):
         print(f"{CYAN}[*] Recompiling APK...{RESET}")
         apktool_bin = shutil.which("apktool") or "/data/data/com.termux/files/usr/bin/apktool"
-        aapt_bin = shutil.which("aapt") or "/data/data/com.termux/files/usr/bin/aapt"
         
-        # 1. Primary build attempt (AAPT2)
+        # Clean build command (No legacy flags needed because resources weren't decoded)
         cmd = [apktool_bin, "b", self.decompiled_dir, "-o", self.recompiled_apk]
         res = subprocess.run(cmd, capture_output=True, text=True)
         
-        # 2. Fallback using legacy AAPT (-a flag) if AAPT2 strict validation fails
-        if res.returncode != 0 and os.path.exists(aapt_bin):
-            print(f"{YELLOW}[!] AAPT2 build failed. Retrying recompilation with legacy AAPT (-a {aapt_bin})...{RESET}")
-            cmd_fallback = [apktool_bin, "b", "-a", aapt_bin, self.decompiled_dir, "-o", self.recompiled_apk]
-            res = subprocess.run(cmd_fallback, capture_output=True, text=True)
-
         if os.path.exists(self.decompiled_dir):
             shutil.rmtree(self.decompiled_dir)
             
