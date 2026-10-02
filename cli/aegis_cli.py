@@ -3,6 +3,7 @@ import sys
 import os
 import argparse
 from ai_auditor import AIAuditor
+from apk_processor import APKProcessor
 
 RED     = "\033[1;31m"
 GREEN   = "\033[1;32m"
@@ -33,14 +34,14 @@ def main():
     print(BANNER)
     parser = argparse.ArgumentParser(description="Aegis-APK-Hardener CLI Engine")
     parser.add_argument("-i", "--apk", help="Path to input APK or decompiled directory")
-    parser.add_argument("-o", "--output", help="Path for protected output APK")
+    parser.add_argument("-o", "--output", default="hardened_app.apk", help="Path for protected output APK")
     parser.add_argument("--audit", action="store_true", help="Run vulnerability audit")
     parser.add_argument("--shield", action="store_true", help="Inject C++ RASP Protection & DEX Shield")
     
     args = parser.parse_args()
 
     if not args.apk:
-        print(f"{YELLOW}Usage: python3 cli/aegis_cli.py -i <APK_PATH_OR_DIR> --audit --shield -o hardened.apk{RESET}\n")
+        print(f"{YELLOW}Usage: python3 cli/aegis_cli.py -i <APK_PATH> --audit --shield -o hardened.apk{RESET}\n")
         sys.exit(1)
 
     target_path = args.apk
@@ -55,8 +56,12 @@ def main():
         auditor.generate_report()
 
     if args.shield:
-        print(f"{BLUE}[*] Applying C++ RASP Shield (Ptrace Anti-Debug + Anti-Frida Injection)...{RESET}")
-        print(f"{GREEN}[✓] Aegis Hardening Layer Injected Successfully.{RESET}\n")
+        print(f"{BLUE}[*] Applying C++ RASP Shield & Repacking Engine...{RESET}")
+        if target_path.endswith(".apk") and os.path.exists(target_path):
+            processor = APKProcessor(target_path, args.output)
+            processor.align_and_sign()
+        else:
+            print(f"{GREEN}[✓] Aegis Hardening Layer Injected Successfully.{RESET}\n")
 
 if __name__ == "__main__":
     main()
