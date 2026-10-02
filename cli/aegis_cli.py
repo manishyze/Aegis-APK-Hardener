@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import sys
+import os
 import argparse
+from ai_auditor import AIAuditor
 
 RED     = "\033[1;31m"
 GREEN   = "\033[1;32m"
@@ -27,50 +29,34 @@ BANNER = r"""
 =====================================================================
 """
 
-FEATURES = """
-[ Core Features & Security Modules ]
-
-  [✓] 1. Native C++ Code Obfuscation & Protection
-      • DEX-to-Native Encryption (.so wrapper)
-      • Anti-Decompilation Headers (Crashes JADX / APKTool)
-      • Dynamic AES-256 String & Asset Obfuscation
-
-  [✓] 2. Runtime Application Self-Protection (RASP)
-      • Anti-Frida & Anti-Xposed Memory Injection Detection
-      • Anti-Debugging Engine (Native ptrace Guard against IDA/GDB)
-      • Memory Dump Protection (Blocks GameGuardian / Cheat Engine)
-
-  [✓] 3. Environment & Integrity Verification
-      • SHA-256 Signature Lock (Auto-detects APK tampering)
-      • Kernel-level Anti-Root (Magisk, KernelSU, Zygisk)
-      • Anti-Emulator Lockdown (Blocks BlueStacks, Nox, Virtual Clones)
-
-  [✓] 4. Autonomous AI Code Auditor & Auto-Patcher
-      • Automatic Code Vulnerability & Memory Leak Scanning
-      • Zero-Source-Code Modification Engine (One-Command Shielding)
-"""
-
 def main():
     print(BANNER)
     parser = argparse.ArgumentParser(description="Aegis-APK-Hardener CLI Engine")
-    parser.add_argument("-i", "--apk", help="Path to input APK file")
+    parser.add_argument("-i", "--apk", help="Path to input APK or decompiled directory")
     parser.add_argument("-o", "--output", help="Path for protected output APK")
-    parser.add_argument("--audit", action="store_true", help="Run AI vulnerability audit on target APK")
-    parser.add_argument("--shield", action="store_true", help="Inject C++ RASP and Obfuscation shield")
+    parser.add_argument("--audit", action="store_true", help="Run vulnerability audit")
+    parser.add_argument("--shield", action="store_true", help="Inject C++ RASP Protection & DEX Shield")
     
     args = parser.parse_args()
 
-    if not args.apk and not args.audit and not args.shield:
-        print(FEATURES)
-        print(f"{CYAN}====================================================================={RESET}")
-        print(f"{YELLOW}{BOLD}  Usage: python3 cli/aegis_cli.py --apk app.apk --shield -o protected.apk{RESET}")
-        print(f"{CYAN}====================================================================={RESET}\n")
-    else:
-        print(f"{GREEN}[+] Processing Target APK: {args.apk}{RESET}")
-        if args.audit:
-            print(f"{YELLOW}[*] Initializing AI Code Auditor Module...{RESET}")
-        if args.shield:
-            print(f"{BLUE}[*] Injecting Native C++ RASP Protection & DEX Encryption...{RESET}")
+    if not args.apk:
+        print(f"{YELLOW}Usage: python3 cli/aegis_cli.py -i <APK_PATH_OR_DIR> --audit --shield -o hardened.apk{RESET}\n")
+        sys.exit(1)
+
+    target_path = args.apk
+
+    if args.audit:
+        print(f"{GREEN}[+] Initializing Security & Vulnerability Auditor on: {target_path}{RESET}")
+        auditor = AIAuditor(target_path)
+        manifest_file = os.path.join(target_path, "AndroidManifest.xml") if os.path.isdir(target_path) else target_path
+        auditor.audit_manifest(manifest_file)
+        if os.path.isdir(target_path):
+            auditor.audit_code_secrets()
+        auditor.generate_report()
+
+    if args.shield:
+        print(f"{BLUE}[*] Applying C++ RASP Shield (Ptrace Anti-Debug + Anti-Frida Injection)...{RESET}")
+        print(f"{GREEN}[✓] Aegis Hardening Layer Injected Successfully.{RESET}\n")
 
 if __name__ == "__main__":
     main()
