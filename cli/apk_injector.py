@@ -53,38 +53,19 @@ class APKInjector:
         print(f"{GREEN}[✓] Native Shield modules injected into APK structure.{RESET}")
         return True
 
-    def sanitize_resources(self):
-        """Fixes resource files with invalid '$' characters in drawable filenames."""
-        res_dir = os.path.join(self.decompiled_dir, "res")
-        if not os.path.exists(res_dir):
-            return
-        
-        for root, _, files in os.walk(res_dir):
-            for file in files:
-                if "$" in file:
-                    old_path = os.path.join(root, file)
-                    new_filename = file.replace("$", "_")
-                    new_path = os.path.join(root, new_filename)
-                    try:
-                        os.rename(old_path, new_path)
-                    except Exception:
-                        pass
-
     def recompile(self):
         print(f"{CYAN}[*] Recompiling APK...{RESET}")
         apktool_bin = shutil.which("apktool") or "/data/data/com.termux/files/usr/bin/apktool"
+        aapt_bin = shutil.which("aapt") or "/data/data/com.termux/files/usr/bin/aapt"
         
-        # Sanitize resource filenames with invalid '$' characters before building
-        self.sanitize_resources()
-
-        # Primary attempt with default aapt2
+        # 1. Primary build attempt (AAPT2)
         cmd = [apktool_bin, "b", self.decompiled_dir, "-o", self.recompiled_apk]
         res = subprocess.run(cmd, capture_output=True, text=True)
         
-        # Fallback using --use-aapt2 or legacy flags if compilation fails
-        if res.returncode != 0:
-            print(f"{YELLOW}[!] Standard build failed. Retrying recompilation with legacy AAPT...{RESET}")
-            cmd_fallback = [apktool_bin, "b", "--use-aapt2", self.decompiled_dir, "-o", self.recompiled_apk]
+        # 2. Fallback using legacy AAPT (-a flag) if AAPT2 strict validation fails
+        if res.returncode != 0 and os.path.exists(aapt_bin):
+            print(f"{YELLOW}[!] AAPT2 build failed. Retrying recompilation with legacy AAPT (-a {aapt_bin})...{RESET}")
+            cmd_fallback = [apktool_bin, "b", "-a", aapt_bin, self.decompiled_dir, "-o", self.recompiled_apk]
             res = subprocess.run(cmd_fallback, capture_output=True, text=True)
 
         if os.path.exists(self.decompiled_dir):
